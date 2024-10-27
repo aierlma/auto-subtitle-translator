@@ -286,7 +286,7 @@ class CSakuraTranslate:
             self.reset_conversation()
             self.last_file_name = filename
             LOGGER.info(f"-> 开始翻译文件：{filename}")
-        i = 1
+        i = 1 # 修改自原作者
         if self.restore_context_mode and len(self.chatbot.conversation["default"]) == 1:
             self.restore_context(trans_list_unhit, num_pre_request)
 
@@ -295,7 +295,7 @@ class CSakuraTranslate:
         while i < len_trans_list-2 and i>=1:
             await asyncio.sleep(1)
 
-            trans_list_split = trans_list_unhit[i-1 : i + num_pre_request+1] # 前加一句后加一句
+            trans_list_split = trans_list_unhit[i-1 : i + num_pre_request+1] # 前加一句后加一句，修改自原作者
             dic_prompt = (
                 gpt_dic.gen_prompt(trans_list_split,type="sakura")
                 if gpt_dic != None
@@ -303,9 +303,9 @@ class CSakuraTranslate:
             )
             num, trans_result = await self.translate(trans_list_split, dic_prompt)
 
-            i += num-2 if num-2 > 0 else 0
+            i += num-2 if num-2 > 0 else 0 # 修改自原作者
             LOGGER.info("".join([repr(tran) for tran in trans_result]))
-            trans_result_list += trans_result[1:-1]
+            trans_result_list += trans_result[1:-1] # 修改自原作者
             save_transCache_to_json(trans_list, cache_file_path)
             LOGGER.info(f"{filename}: {len(trans_result_list)}/{len_trans_list}")
 
