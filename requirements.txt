@@ -1,0 +1,29 @@
+# Core dependencies
+json5>=0.9.14
+ffmpeg-python==0.2.0
+
+# Whisper dependencies
+ctranslate2
+faster-whisper
+torch
+torchaudio
+
+# Audio processing
+intervaltree
+srt
+
+# Web UI
+gradio==3.38.0
+gradio-client==0.8.1
+
+# Utils
+more_itertools
+yt-dlp
+
+# Optional: Speaker Diarization
+pyannote.audio
+
+# Development
+pytest
+black
+flake8

@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+*.bin
+# VSCode
+.vscode
+*.log
+
+project/
+python_embeded/
+*.gguf
+faster-whisper-webui/output/
