@@ -55,5 +55,5 @@ auto-subtitle-translator/
 
 本项目使用了以下开源项目：
 
-- [faster-whisper-webui](https://github.com/author/faster-whisper-webui) - Apache License 2.0
+- [faster-whisper-webui](https://huggingface.co/spaces/aadnk/faster-whisper-webui) - Apache License 2.0
 - [GalTransl](https://github.com/xd2333/GalTransl) - GNU General Public License
