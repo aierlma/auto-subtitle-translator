@@ -30,6 +30,9 @@ python cli.py "path/to/your/video.mp4" [127.0.0.1:8080]
 
 详细配置请参考各模块的配置文件。
 
+whisper转录模型会在一次使用时自动下载。
+翻译模型使用的Sakura模型还请自行配置。推荐使用https://github.com/PiDanShouRouZhouXD/Sakura_Launcher_GUI项目进行配置
+
 ## 项目结构
 
 ```
