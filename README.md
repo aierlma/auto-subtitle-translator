@@ -1,6 +1,6 @@
 # Auto Subtitle Translator
 
-一个自动化的视频字幕翻译工具,集成了语音识别、字幕生成和翻译功能。仅限使用Sakura模型翻译，未考虑集成任何其他翻译模型。
+一个自动化的视频字幕翻译工具,集成了语音识别、字幕生成和翻译功能。仅限使用Sakura模型翻译，未考虑集成任何其他翻译模型，仅支持日语到简体中文。
 对于gpt翻译需求，推荐使用[subtitle-translator-electron](https://github.com/gnehs/subtitle-translator-electron)
 
 ## 功能特点
