@@ -1,7 +1,7 @@
 # Auto Subtitle Translator
 
 一个自动化的视频字幕翻译工具,集成了语音识别、字幕生成和翻译功能。仅限使用Sakura模型翻译，未考虑集成任何其他翻译模型。
-对于gpt翻译需求，推荐使用https://github.com/gnehs/subtitle-translator-electron
+对于gpt翻译需求，推荐使用[subtitle-translator-electron](https://github.com/gnehs/subtitle-translator-electron)
 
 ## 功能特点
 
@@ -29,6 +29,10 @@ python cli.py "path/to/your/video.mp4" [127.0.0.1:8080]
 2. GalTransl: 翻译处理模块
 
 详细配置请参考各模块的配置文件。
+
+whisper转录模型会在一次使用时自动下载。
+翻译模型使用的Sakura模型还请自行配置。推荐使用[Sakura_Launcher_GUI](https://github.com/PiDanShouRouZhouXD/Sakura_Launcher_GUI)
+项目进行配置
 
 ## 项目结构
 
