@@ -51,43 +51,9 @@ def run_whisper(input_file):
     whisper_dir = os.path.join(os.getcwd(), "faster-whisper-webui")
     cmd = [
         "python",
-        os.path.join(whisper_dir, "cli.py"),
-        "--model", config.get("default_model_name", "large-v3"),
-        "--whisper_implementation", config.get("whisper_implementation", "faster-whisper"),
-        "--vad", config.get("default_vad", "silero-vad"),
-        "--task", config.get("task", "transcribe"),
-        "--output_dir", output_dir,
-        "--language", "Japanese"  # 强制设置为日语
-    ]
-    
-    # 添加VAD相关参数
-    if config.get("vad_merge_window") is not None:
-        cmd.extend(["--vad_merge_window", str(config["vad_merge_window"])])
-    
-    if config.get("vad_max_merge_size") is not None:
-        cmd.extend(["--vad_max_merge_size", str(config["vad_max_merge_size"])])
-    
-    if config.get("vad_padding") is not None:
-        cmd.extend(["--vad_padding", str(config["vad_padding"])])
-    
-    if config.get("vad_prompt_window") is not None:
-        cmd.extend(["--vad_prompt_window", str(config["vad_prompt_window"])])
-    
-    if config.get("vad_cpu_cores") is not None:
-        cmd.extend(["--vad_cpu_cores", str(config["vad_cpu_cores"])])
-    
-    if config.get("vad_parallel_devices"):
-        cmd.extend(["--vad_parallel_devices", config["vad_parallel_devices"]])
-    
-    if config.get("auto_parallel", True):
-        cmd.extend(["--auto_parallel", "True"])
-    
-    # 添加其他性能相关参数
-    if config.get("compute_type"):
-        cmd.extend(["--compute_type", config["compute_type"]])
-    
-    if config.get("device"):
-        cmd.extend(["--device", config["device"]])
+        os.path.join(whisper_dir, "cli.py")
+    ] # Configuration options that will be used if they are not specified in the command line arguments.
+
     
     # 添加输入文件
     cmd.append(input_file)
