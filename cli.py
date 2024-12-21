@@ -17,7 +17,7 @@ def convert_to_wav(input_file):
     print("正在将视频转换为音频...")
     wav_path = input_file + '.wav'
     
-    # 使用ffmpeg进行转换，保留前20秒
+    # 使用ffmpeg进行转换
     cmd = [
         'ffmpeg.exe',
         '-y',              # 覆盖已存在的文件
