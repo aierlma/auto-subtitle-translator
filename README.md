@@ -21,6 +21,9 @@ python cli.py "path/to/your/video.mp4" [127.0.0.1:8080]
 后面的[127.0.0.1:8080]是你的sakura api 地址，选择性填写。
 若不填写，则需要在该项目的文件夹旁拥有Sakura_Launcher_GUI项目。并且使用main.py脚本启动sakura模型，或者可以自行修改cli.py中的start_sakura_service函数。
 
+### 进阶用法
+在已经开启Sakura服务器的情况下，可以使用monitor_videos.bat(限Windows)对指定文件夹里的所有mp4文件遍历并进行字幕生成。
+
 ### 配置说明
 
 项目包含两个主要模块:
