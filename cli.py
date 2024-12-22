@@ -152,7 +152,7 @@ def delete_repeated_sequences(srt_path):
 
 def main():
     if len(sys.argv) < 2:
-        print("使用方法: python auto_subtitle.py <视频文件路径> [sakura_address]")
+        print("使用方法: python cli.py <视频文件路径> [sakura_address]")
         sys.exit(1)
     
     input_file = sys.argv[1]
