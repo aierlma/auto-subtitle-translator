@@ -6,6 +6,7 @@ import codecs
 from typing import Tuple, List
 from collections import Counter
 from re import compile
+import requests
 
 PATTERN_CODE_BLOCK = compile(r"```([\w]*)\n([\s\S]*?)\n```")
 
@@ -46,7 +47,7 @@ def contains_japanese(text: str) -> bool:
     # 日文字符范围
     hiragana_range = (0x3040, 0x309F)
     katakana_range = (0x30A0, 0x30FF)
-    hankaku_range = (0xFF66, 0xFF9F)
+    katakana_range2 = (0xFF66, 0xFF9F)
 
     # 检查字符串中的每个字符
     for char in text:
@@ -59,11 +60,40 @@ def contains_japanese(text: str) -> bool:
         if (
             hiragana_range[0] <= code_point <= hiragana_range[1]
             or katakana_range[0] <= code_point <= katakana_range[1]
-            or hankaku_range[0] <= code_point <= hankaku_range[1]
+            or katakana_range2[0] <= code_point <= katakana_range2[1]
         ):
             return True
     return False
 
+def contains_english(text: str) -> bool:
+    """
+    此函数接受一个字符串作为输入，检查其中是否包含英文字符。
+
+    参数:
+    - text: 要检查的字符串。
+
+    返回值:
+    - 如果字符串中包含英文字符，则返回 True，否则返回 False。
+    """
+    # 英文字符范围
+    english_range = (0x0041, 0x005A)
+    english_range2 = (0x0061, 0x007A)
+    english_range3 = (0xFF21, 0xFF3A)
+    english_range4 = (0xFF41, 0xFF5A)
+
+    # 检查字符串中的每个字符
+    for char in text:
+        # 获取字符的 Unicode 码点
+        code_point = ord(char)
+        # 检查字符是否在英文字符范围内
+        if (
+            english_range[0] <= code_point <= english_range[1]
+            or english_range2[0] <= code_point <= english_range2[1]
+            or english_range3[0] <= code_point <= english_range3[1]
+            or english_range4[0] <= code_point <= english_range4[1]
+        ):
+            return True
+    return False
 
 def extract_code_blocks(content: str) -> Tuple[List[str], List[str]]:
     # 匹配带语言标签的代码块
@@ -96,3 +126,51 @@ def get_file_list(directory: str):
 
 def process_escape(text: str) -> str:
     return codecs.escape_decode(bytes(text, "utf-8"))[0].decode("utf-8")
+
+pattern_fix_quotes = compile(r'"dst": *"(.+?)"}')
+
+def fix_quotes(text):
+    results = pattern_fix_quotes.findall(text)
+    for match in results:
+        new_match = match
+        for i in range(match.count('"')):
+            if i % 2 == 0:
+                new_match = new_match.replace('"', "“", 1).replace(r'\“', "“", 1)
+            else:
+                new_match = new_match.replace('"', "”", 1).replace(r'\”', "”", 1)
+        text = text.replace(match, new_match)
+    return text
+
+
+def check_for_tool_updates(new_version):
+    try:
+        release_api = 'https://api.github.com/repos/xd2333/GalTransl/releases/latest'
+        response = requests.get(
+            release_api, timeout=5).json()
+        latest_release = response['tag_name']
+        new_version.append(latest_release)
+    except Exception:
+        pass
+
+def find_most_repeated_substring(text):
+    max_count = 0
+    max_substring = ""
+    n = len(text)
+
+    for i in range(n):
+        for j in range(i + 1, n + 1):
+            substring = text[i:j]
+            count = 1
+            start = j
+            while start + len(substring) <= n and text[start:start + len(substring)] == substring:
+                count += 1
+                start += len(substring)
+            
+            if count > max_count or (count == max_count and len(substring) > len(max_substring)):
+                max_count = count
+                max_substring = substring
+
+    return max_substring, max_count
+
+if __name__ == '__main__':
+    print(contains_english("機密レベルＡＡ以上のファイルを一覧"))

@@ -1,6 +1,6 @@
 # Auto Subtitle Translator
 
-一个自动化的视频字幕翻译工具,集成了语音识别、字幕生成和翻译功能。仅限使用Sakura模型翻译，未考虑集成任何其他翻译模型，仅支持日语到简体中文。
+一个自动化的视频字幕翻译工具,集成了语音识别、字幕生成和翻译功能。仅限使用Sakura模型翻译和支持openai api格式的模型，仅支持日语到简体中文。
 对于gpt翻译需求，推荐使用[subtitle-translator-electron](https://github.com/gnehs/subtitle-translator-electron)
 
 ## 功能特点
@@ -18,11 +18,11 @@
 ```bash
 python cli.py "path/to/your/video.mp4" [127.0.0.1:8080]
 ```
-后面的[127.0.0.1:8080]是你的sakura api 地址，选择性填写。
+后面的[127.0.0.1:8080]是你的sakura api 地址，选择性填写。或者填写"claude"或者"gpt-4o-mini"，并在config中配置好key和强制覆写的模型名，调用其他AI
 若不填写，则需要在该项目的文件夹旁拥有Sakura_Launcher_GUI项目。并且使用main.py脚本启动sakura模型，或者可以自行修改cli.py中的start_sakura_service函数。
 
 ### 进阶用法
-在已经开启Sakura服务器的情况下，可以使用monitor_videos.bat(限Windows)对指定文件夹里的所有mp4文件遍历并进行字幕生成。
+在已经开启Sakura服务器的情况下或使用claude或openai api的情况下，可以使用monitor_videos.bat(限Windows)对指定文件夹里的所有mp4文件遍历并进行字幕生成。
 
 ### 配置说明
 
@@ -53,6 +53,8 @@ auto-subtitle-translator/
 - Python 3.8+
 - 其他依赖详见 第三方项目的requirments
 
+## 工具
+关于使用Claude api，由于该项目仅支持openai格式，故推荐该项目[one-ap](https://github.com/songquanpeng/one-api)，并可以在个人服务器或者koyeb上免费部署，使用docker部署，方便快捷。
 
 ## 许可证
 

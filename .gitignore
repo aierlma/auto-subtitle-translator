@@ -9,3 +9,46 @@ project/
 python_embeded/
 *.gguf
 faster-whisper-webui/output/
+
+# Python
+*.pyo
+*.pyd
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Environment
+.env
+.venv/
+env/
+venv/
+ENV/
+
+# IDE
+.idea/
+*.swp
+*.swo
+
+# Project specific
+*.cache
+.DS_Store
+*.tmp
+*.temp
+*.bak
+*~
+*.yaml
+!file_*/*.yaml
+!plugins/*/*.yaml
+
+# Model files
+*.model
+*.pth
+*.ckpt
+*.pt

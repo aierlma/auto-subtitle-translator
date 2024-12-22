@@ -10,25 +10,24 @@ from GalTransl.ConfigHelper import (
 )
 from random import choice
 from GalTransl.CSentense import CSentense, CTransList
-from GalTransl.Cache import get_transCache_from_json, save_transCache_to_json
+from GalTransl.Cache import get_transCache_from_json_new, save_transCache_to_json
 from GalTransl.Dictionary import CGptDict
-from GalTransl.Utils import extract_code_blocks
+from GalTransl.Utils import extract_code_blocks, fix_quotes
 from GalTransl.Backend.Prompts import (
-    GPT4_CONF_PROMPT,
-    GPT4_TRANS_PROMPT,
-    GPT4_SYSTEM_PROMPT,
-    GPT4_PROOFREAD_PROMPT,
     NAME_PROMPT4,
 )
+from GalTransl.Backend.BaseTranslate import BaseTranslate
 from GalTransl.Backend.Prompts import (
     GPT4Turbo_SYSTEM_PROMPT,
     GPT4Turbo_TRANS_PROMPT,
     GPT4Turbo_CONF_PROMPT,
     GPT4Turbo_PROOFREAD_PROMPT,
+    GPT4_CONF_PROMPT,
+    H_WORDS_LIST,
 )
 
 
-class CGPT4Translate:
+class CGPT4Translate(BaseTranslate):
     # init
     def __init__(
         self,
@@ -52,6 +51,11 @@ class CGPT4Translate:
         self.last_file_name = ""
         self.restore_context_mode = config.getKey("gpt.restoreContextMode")
         self.retry_count = 0
+        # 保存间隔
+        if val := config.getKey("save_steps"):
+            self.save_steps = val
+        else:
+            self.save_steps = 1
         # 记录确信度
         if val := config.getKey("gpt.recordConfidence"):
             self.record_confidence = val
@@ -76,6 +80,11 @@ class CGPT4Translate:
             raise ValueError("错误的目标语言代码：" + self.target_lang)
         else:
             self.target_lang = LANG_SUPPORTED[self.target_lang]
+        # 429等待时间
+        if val := config.getKey("gpt.tooManyRequestsWaitTime"):
+            self.wait_time = val
+        else:
+            self.wait_time = 60
         # 挥霍token模式
         if val := config.getKey("gpt.fullContextMode"):
             self.full_context_mode = val
@@ -86,6 +95,16 @@ class CGPT4Translate:
             self.skipRetry = val
         else:
             self.skipRetry = False
+        # 跳过h
+        if val := config.getKey("skipH"):
+            self.skipH = val
+        else:
+            self.skipH = False
+        # enhance_jailbreak
+        if val := config.getKey("gpt.enhance_jailbreak"):
+            self.enhance_jailbreak = val
+        else:
+            self.enhance_jailbreak = False
         # 流式输出模式
         if val := config.getKey("gpt.streamOutputMode"):
             self.streamOutputMode = val
@@ -100,54 +119,50 @@ class CGPT4Translate:
             self.proxyProvider = proxy_pool
         else:
             self.proxyProvider = None
-            LOGGER.warning("不使用代理")
-        # 翻译风格
-        if val := config.getKey("gpt.translStyle"):
-            self.transl_style = val
-        else:
-            self.transl_style = "auto"
-        self._current_style = ""
+
+        self._current_temp_type = ""
 
         self.init_chatbot(eng_type=eng_type, config=config)  # 模型选择
 
-        if self.transl_style == "auto":
-            self._set_gpt_style("precise")
-        else:
-            self._set_gpt_style(self.transl_style)
+        self._set_temp_type("precise")
 
         if self.target_lang == "Simplified_Chinese":
             self.opencc = OpenCC("t2s.json")
         elif self.target_lang == "Traditional_Chinese":
-            self.opencc = OpenCC("s2t.json")
+            self.opencc = OpenCC("s2tw.json")
 
         pass
 
     def init_chatbot(self, eng_type, config):
         eng_name = config.getBackendConfigSection("GPT4").get("rewriteModelName", "")
-        if eng_type == "gpt4":
+        if eng_type == "claude":
+            eng_name = config.getBackendConfigSection("CLAUDE").get("rewriteModelName", "")
+        if eng_type == "gpt4-turbo":
             from GalTransl.Backend.revChatGPT.V3 import Chatbot as ChatbotV3
 
             self.token = self.tokenProvider.getToken(False, True)
-            eng_name = "gpt-4" if eng_name == "" else eng_name
+            eng_name = "gpt-4-1106-preview" if eng_name == "" else eng_name
+            system_prompt = GPT4Turbo_SYSTEM_PROMPT
             self.chatbot = ChatbotV3(
                 api_key=self.token.token,
                 temperature=0.4,
                 frequency_penalty=0.2,
-                system_prompt=GPT4_SYSTEM_PROMPT,
+                system_prompt=system_prompt,
                 engine=eng_name,
                 api_address=self.token.domain + "/v1/chat/completions",
                 timeout=30,
+                response_format="json",
             )
-            self.chatbot.trans_prompt = GPT4_TRANS_PROMPT
-            self.chatbot.proofread_prompt = GPT4_PROOFREAD_PROMPT
+            self.chatbot.trans_prompt = GPT4Turbo_TRANS_PROMPT
+            self.chatbot.proofread_prompt = GPT4Turbo_PROOFREAD_PROMPT
             self.chatbot.update_proxy(
                 self.proxyProvider.getProxy().addr if self.proxyProvider else None
             )
-        elif eng_type == "gpt4-turbo":
+        elif eng_type == "claude":
             from GalTransl.Backend.revChatGPT.V3 import Chatbot as ChatbotV3
-
+            print("adsadasdasfsdfd!!!!!!")
             self.token = self.tokenProvider.getToken(False, True)
-            eng_name = "gpt-4-0125-preview" if eng_name == "" else eng_name
+            eng_name = "claude-3-5-haiku-20241022" if eng_name == "" else eng_name
             system_prompt = GPT4Turbo_SYSTEM_PROMPT
             self.chatbot = ChatbotV3(
                 api_key=self.token.token,
@@ -212,6 +227,10 @@ class CGPT4Translate:
             prompt_req = prompt_req.replace("[NamePrompt3]", NAME_PROMPT4)
         else:
             prompt_req = prompt_req.replace("[NamePrompt3]", "")
+        if self.enhance_jailbreak:
+            assistant_prompt = "```jsonline"
+        else:
+            assistant_prompt = ""
         while True:  # 一直循环，直到得到数据
             try:
                 # change token
@@ -227,15 +246,16 @@ class CGPT4Translate:
                 )
                 if self.streamOutputMode:
                     LOGGER.info("->输出：")
-                resp = ""
+                resp, data = "", ""
                 if self.eng_type != "unoffapi":
                     if not self.full_context_mode:
                         self._del_previous_message()
-                    async for data in self.chatbot.ask_stream_async(prompt_req):
+                    async for data in self.chatbot.ask_stream_async(
+                        prompt_req, assistant_prompt=assistant_prompt
+                    ):
                         if self.streamOutputMode:
                             print(data, end="", flush=True)
                         resp += data
-                    print(data, end="\n")
                 elif self.eng_type == "unoffapi":
                     async for data in self.chatbot.ask_async(prompt_req):
                         if self.streamOutputMode:
@@ -255,38 +275,43 @@ class CGPT4Translate:
                 LOGGER.error(f"-> {str_ex}")
                 if "quota" in str_ex:
                     self.tokenProvider.reportTokenProblem(self.token)
-                    LOGGER.error(f"-> 余额不足： {self.token.maskToken()}")
+                    LOGGER.error(f"-> [请求错误]余额不足： {self.token.maskToken()}")
                     self.token = self.tokenProvider.getToken(False, True)
                     self.chatbot.set_api_key(self.token.token)
-                elif "try again later" in str_ex or "too many requests" in str_ex:
-                    LOGGER.warning("-> 请求受限，1分钟后继续尝试")
-                    await asyncio.sleep(60)
+                    self._del_last_answer()
+                    LOGGER.warning(f"-> [请求错误]切换到token {self.token.maskToken()}")
                     continue
-                elif "expired" in str_ex:
-                    LOGGER.error("-> access_token过期，请更换")
-                    exit()
+                elif "try again later" in str_ex or "too many requests" in str_ex:
+                    LOGGER.warning(
+                        f"-> [请求错误]请求受限，{self.wait_time}秒后继续尝试"
+                    )
+                    await asyncio.sleep(self.wait_time)
+                    continue
                 elif "try reload" in str_ex:
                     self.reset_conversation()
-                    LOGGER.error("-> 报错重置会话")
+                    LOGGER.error("-> [请求错误]报错重置会话")
                     continue
-
-                self._del_last_answer()
-                LOGGER.info("-> 报错:%s, 5秒后重试" % ex)
-                await asyncio.sleep(5)
-                continue
+                else:
+                    self._del_last_answer()
+                    LOGGER.info("-> [请求错误]报错:%s, 2秒后重试" % ex)
+                    await asyncio.sleep(2)
+                    continue
 
             result_text = resp
             if "```json" in result_text:
                 lang_list, code_list = extract_code_blocks(result_text)
                 if len(lang_list) > 0 and len(code_list) > 0:
                     result_text = code_list[0]
-            result_text = result_text[result_text.find('{"id') :]
+            if '{"id' in result_text:
+                result_text = result_text[result_text.find('{"id') :]
 
             result_text = (
                 result_text.replace(", doub:", ', "doub":')
                 .replace(", conf:", ', "conf":')
                 .replace(", unkn:", ', "unkn":')
             )
+            result_text = fix_quotes(result_text)
+
             i = -1
             result_trans_list = []
             key_name = "dst" if not proofread else "newdst"
@@ -316,7 +341,7 @@ class CGPT4Translate:
                     break
                 line_id = line_json["id"]
                 if line_id != trans_list[i].index:
-                    error_message = f"-> 输出{line_id}句id未对应"
+                    error_message = f"输出{line_id}句id未对应"
                     error_flag = True
                     break
                 if key_name not in line_json or type(line_json[key_name]) != str:
@@ -325,7 +350,7 @@ class CGPT4Translate:
                     break
                 # 本行输出不应为空
                 if trans_list[i].post_jp != "" and line_json[key_name] == "":
-                    error_message = f"-> 第{line_id}句空白"
+                    error_message = f"第{line_id}句空白"
                     error_flag = True
                     break
                 if "/" in line_json[key_name]:
@@ -334,13 +359,13 @@ class CGPT4Translate:
                         and "/" not in trans_list[i].post_jp
                     ):
                         error_message = (
-                            f"-> 第{line_id}句多余 / 符号：" + line_json[key_name]
+                            f"第{line_id}句多余 / 符号：" + line_json[key_name]
                         )
                         error_flag = True
                         break
                 if self.target_lang != "English":
                     if "can't fullfill" in line_json[key_name]:
-                        error_message = f"-> GPt4拒绝了翻译"
+                        error_message = f"GPT4拒绝了翻译"
                         error_flag = True
                         break
 
@@ -350,7 +375,7 @@ class CGPT4Translate:
                 if not proofread:
                     trans_list[i].pre_zh = line_json[key_name]
                     trans_list[i].post_zh = line_json[key_name]
-                    trans_list[i].trans_by = "GPT-4"
+                    trans_list[i].trans_by = self.chatbot.engine
                     if "conf" in line_json:
                         trans_list[i].trans_conf = line_json["conf"]
                     if "doub" in line_json:
@@ -360,25 +385,27 @@ class CGPT4Translate:
                     result_trans_list.append(trans_list[i])
                 else:
                     trans_list[i].proofread_zh = line_json[key_name]
-                    trans_list[i].proofread_by = "GPT-4"
+                    trans_list[i].proofread_by = self.chatbot.engine
                     trans_list[i].post_zh = line_json[key_name]
                     result_trans_list.append(trans_list[i])
 
             if error_flag:
-                LOGGER.error(f"-> 解析结果出错：{error_message}")
+                LOGGER.error(f"-> [解析错误]解析结果出错：{error_message}")
                 if self.skipRetry:
                     self.reset_conversation()
-                    LOGGER.warning("-> 解析出错但跳过本轮翻译")
+                    LOGGER.warning("-> [解析错误]解析出错但跳过本轮翻译")
                     i = 0 if i < 0 else i
                     while i < len(trans_list):
                         if not proofread:
                             trans_list[i].pre_zh = "Failed translation"
                             trans_list[i].post_zh = "Failed translation"
-                            trans_list[i].trans_by = "GPT-4(Failed)"
+                            trans_list[i].trans_by = f"{self.chatbot.engine}(Failed)"
                         else:
                             trans_list[i].proofread_zh = trans_list[i].pre_zh
                             trans_list[i].post_zh = trans_list[i].pre_zh
-                            trans_list[i].proofread_by = "GPT-4(Failed)"
+                            trans_list[i].proofread_by = (
+                                f"{self.chatbot.engine}(Failed)"
+                            )
                         result_trans_list.append(trans_list[i])
                         i = i + 1
                     return i, result_trans_list
@@ -387,8 +414,7 @@ class CGPT4Translate:
                 self._del_last_answer()
                 self.retry_count += 1
                 # 切换模式
-                if self.transl_style == "auto":
-                    self._set_gpt_style("normal")
+                self._set_temp_type("normal")
                 # 2次重试则对半拆
                 if self.retry_count == 2 and len(trans_list) > 1:
                     self.retry_count -= 1
@@ -407,8 +433,7 @@ class CGPT4Translate:
                 continue
 
             # 翻译完成，收尾
-            if self.transl_style == "auto":
-                self._set_gpt_style("precise")
+            self._set_temp_type("precise")
             self.retry_count = 0
             break
         return i + 1, result_trans_list
@@ -424,7 +449,7 @@ class CGPT4Translate:
         proofread: bool = False,
         retran_key: str = "",
     ) -> CTransList:
-        _, trans_list_unhit = get_transCache_from_json(
+        _, trans_list_unhit = get_transCache_from_json_new(
             trans_list,
             cache_file_path,
             retry_failed=retry_failed,
@@ -432,9 +457,14 @@ class CGPT4Translate:
             retran_key=retran_key,
         )
 
-        # 校对模式多喂上一行
-        # if proofread and trans_list_unhit[0].prev_tran != None:
-        #    trans_list_unhit.insert(0, trans_list_unhit[0].prev_tran)
+        if self.skipH:
+            LOGGER.warning("skipH: 将跳过含有敏感词的句子")
+            trans_list_unhit = [
+                tran
+                for tran in trans_list_unhit
+                if not any(word in tran.post_jp for word in H_WORDS_LIST)
+            ]
+
         if len(trans_list_unhit) == 0:
             return []
         # 新文件重置chatbot
@@ -454,6 +484,7 @@ class CGPT4Translate:
 
         trans_result_list = []
         len_trans_list = len(trans_list_unhit)
+        transl_step_count = 0
         while i < len_trans_list:
             await asyncio.sleep(1)
             trans_list_split = (
@@ -475,7 +506,10 @@ class CGPT4Translate:
                 result_output = result_output + repr(trans)
             LOGGER.info(result_output)
             trans_result_list += trans_result
-            save_transCache_to_json(trans_list, cache_file_path)
+            transl_step_count += 1
+            if transl_step_count >= self.save_steps:
+                save_transCache_to_json(trans_list, cache_file_path)
+                transl_step_count = 0
             LOGGER.info(
                 f"{filename}: {str(len(trans_result_list))}/{str(len_trans_list)}"
             )
@@ -519,16 +553,12 @@ class CGPT4Translate:
         elif self.eng_type == "unoffapi":
             pass
 
-    def _set_gpt_style(self, style_name: str):
+    def _set_temp_type(self, style_name: str):
         if self.eng_type == "unoffapi":
             return
-        if self._current_style == style_name:
+        if self._current_temp_type == style_name:
             return
-        self._current_style = style_name
-        if self.transl_style == "auto":
-            LOGGER.info(f"-> 自动切换至{style_name}参数预设")
-        else:
-            LOGGER.info(f"-> 使用{style_name}参数预设")
+        self._current_temp_type = style_name
         # normal default
         temperature, top_p = 1.0, 1.0
         frequency_penalty, presence_penalty = 0.3, 0.0
@@ -572,7 +602,9 @@ class CGPT4Translate:
                 [json.dumps(obj, ensure_ascii=False) for obj in tmp_context]
             )
             self.chatbot.conversation["default"].append(
-                {"role": "user", "content": "(History Translation Request)"},
+                {"role": "user", "content": "(History Translation Request)"}
+            )
+            self.chatbot.conversation["default"].append(
                 {
                     "role": "assistant",
                     "content": f"Transl: \n```jsonline\n{json_lines}\n```",

@@ -39,22 +39,30 @@ def translate_srt(input_srt, sakura_address=None):
     rewriteModelName: ""
   Sakura:
     endpoint: ""''')
-    
+
     if sakura_address: # if sakura_address is None, use the default endpoint 8080
-        with open(config_path, 'r', encoding='utf-8') as f:
-            lines = f.readlines()
-        
-        for idx, line in enumerate(lines):
-            if 'Sakura' in line:
-                lines[idx+1] = f"    endpoint: {sakura_address}\n"
-        
-        with open(config_path, 'w', encoding='utf-8') as f:
-            f.writelines(lines)
+        if sakura_address == 'claude':
+            eng_type = 'claude'
+        elif sakura_address == 'gpt-4o-mini':
+            eng_type = 'gpt4-turbo'
+        else:
+            eng_type = 'sakura-010'
+            with open(config_path, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+            
+            for idx, line in enumerate(lines):
+                if 'Sakura' in line:
+                    lines[idx+1] = f"    endpoint: {sakura_address}\n"
+            
+            with open(config_path, 'w', encoding='utf-8') as f:
+                f.writelines(lines)
     
     # 执行翻译
     print("正在进行翻译...")
     from GalTransl.__main__ import worker
-    worker('project', 'config.yaml', 'sakura-010', show_banner=False)
+    # worker('project', 'config.yaml', 'sakura-010', show_banner=False)
+    '''GPT系列选择逻辑，若gpt4字符串在其中，则在config.yaml中选择GPT4模型，若gpt35字符串在其中，则选择GPT3.5模型'''
+    worker('project', 'config.yaml', eng_type, show_banner=False)
     
     # 生成翻译后的字幕文件
     print("正在生成字幕文件...")

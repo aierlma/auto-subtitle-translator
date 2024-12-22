@@ -124,6 +124,12 @@ class Chatbot:
         Add a message to the conversation
         """
         self.conversation[convo_id].append({"role": role, "content": message})
+    
+    def pop_conversation(self, convo_id: str = "default") -> None:
+        """
+        Pop the conversation
+        """
+        self.conversation[convo_id].pop()
 
     def __truncate_conversation(self, convo_id: str = "default") -> None:
         """
@@ -144,17 +150,8 @@ class Chatbot:
         """
         Get token count
         """
-        if "gpt-3.5" not in self.engine and "gpt-4" not in self.engine and "claude" not in self.engine:
-            engine = "gpt-3.5"
-        else:
-            engine = self.engine
 
-        tiktoken.model.MODEL_TO_ENCODING["gpt-4"] = "cl100k_base"
-
-        if "claude" in self.engine:
-            encoding = tiktoken.encoding_for_model("gpt-4")
-        else:
-            encoding = tiktoken.encoding_for_model(engine)
+        encoding = tiktoken.get_encoding("cl100k_base")
 
         num_tokens = 0
         for message in self.conversation[convo_id]:
@@ -214,24 +211,6 @@ class Chatbot:
                 "n": kwargs.get("n", self.reply_count),
                 "user": role,
                 "max_tokens": self.get_max_tokens(convo_id=convo_id),
-            } if not 'qwen' in self.engine else {
-                "model": self.engine,
-                "messages": self.conversation[convo_id],
-                "stream": True,
-                # kwargs
-                "temperature": kwargs.get("temperature", self.temperature),
-                "top_p": kwargs.get("top_p", self.top_p),
-                "presence_penalty": kwargs.get(
-                    "presence_penalty",
-                    self.presence_penalty,
-                ),
-                "response_format": kwargs.get(
-                    "response_format",
-                    self.response_format,
-                ),
-                "n": kwargs.get("n", self.reply_count),
-                "user": role,
-                "max_tokens": self.get_max_tokens(convo_id=convo_id),
             },
             timeout=kwargs.get("timeout", self.timeout),
             stream=True,
@@ -280,12 +259,12 @@ class Chatbot:
         if convo_id not in self.conversation:
             self.reset(convo_id=convo_id, system_prompt=self.system_prompt)
         self.add_to_conversation(prompt, "user", convo_id=convo_id)
+        if kwargs.get("assistant_prompt","")!= "":
+            self.add_to_conversation(
+                kwargs.get("assistant_prompt"), "assistant", convo_id=convo_id
+            )
         self.__truncate_conversation(convo_id=convo_id)
         # Get response
-        if 'bigmodel' in self.api_address:
-            self.api_address = self.api_address.replace('v1', 'v4')
-        if 'minimax' in self.api_address:
-            self.api_address = self.api_address.replace('/chat/completions', '/text/chatcompletion_v2')
         async with self.aclient.stream(
             "post",
             self.api_address,
@@ -304,20 +283,6 @@ class Chatbot:
                 "frequency_penalty": kwargs.get(
                     "frequency_penalty",
                     self.frequency_penalty,
-                ),
-                "n": kwargs.get("n", self.reply_count),
-                "user": role,
-                "max_tokens": self.get_max_tokens(convo_id=convo_id),
-            } if not 'qwen' in self.engine else {
-                "model": self.engine,
-                "messages": self.conversation[convo_id],
-                "stream": True,
-                # kwargs
-                "temperature": kwargs.get("temperature", self.temperature),
-                "top_p": kwargs.get("top_p", self.top_p),
-                "presence_penalty": kwargs.get(
-                    "presence_penalty",
-                    self.presence_penalty,
                 ),
                 "n": kwargs.get("n", self.reply_count),
                 "user": role,
@@ -343,6 +308,8 @@ class Chatbot:
                     break
                 if "{" not in line:
                     continue
+                if "flagged" in line and "403" in line:
+                    yield "输入被openrouter.ai标记为有害，考虑更换中转。"
                 resp: dict = json.loads(line)
                 choices = resp.get("choices")
                 if not choices:
@@ -356,6 +323,9 @@ class Chatbot:
                     content: str = delta["content"]
                     full_response += content
                     yield content
+        if kwargs.get("assistant_prompt","")!= "":
+            self.pop_conversation(convo_id=convo_id)
+        
         self.add_to_conversation(full_response, "assistant", convo_id=convo_id)
 
     async def ask_async(
