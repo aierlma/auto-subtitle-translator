@@ -292,12 +292,21 @@ class CSakuraTranslate:
 
         trans_result_list = []
         len_trans_list = len(trans_list_unhit)
+        transl_step_count = 0
+        progress_bar = atqdm(
+            total=len_trans_list,
+            desc=f"Translating {filename}",
+            unit="line",
+            dynamic_ncols=True,
+            leave=False,
+            file=sys.stdout,
+        )
         while i < len_trans_list-2 and i>=1:
             await asyncio.sleep(1)
 
             trans_list_split = trans_list_unhit[i-1 : i + num_pre_request+1] # 前加一句后加一句，修改自原作者
             dic_prompt = (
-                gpt_dic.gen_prompt(trans_list_split,type="sakura")
+                gpt_dic.gen_prompt(trans_list_split, type="sakura")
                 if gpt_dic != None
                 else ""
             )
