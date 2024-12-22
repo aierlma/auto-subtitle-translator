@@ -4,6 +4,7 @@
 # VSCode
 .vscode
 *.log
+monitor_videos.*
 
 project/
 python_embeded/

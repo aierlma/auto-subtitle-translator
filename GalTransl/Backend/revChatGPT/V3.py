@@ -219,7 +219,7 @@ class Chatbot:
             raise t.APIConnectionError(
                 f"{response.status_code} {response.reason} {response.text}",
             )
-        response_role: str or None = None
+        response_role: str | None = None
         full_response: str = ""
         for line in response.iter_lines():
             if not line:
