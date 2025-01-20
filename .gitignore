@@ -52,5 +52,6 @@ ENV/
 *.pth
 *.ckpt
 *.pt
+*.bat
 monitor_videos.*
 !monitor_videos.bat.template

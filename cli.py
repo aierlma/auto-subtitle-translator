@@ -47,7 +47,7 @@ def run_whisper(input_file):
     if file_ext in ['.mp4', '.mkv', '.avi', '.mov', '.flv', '.webm']:
         input_file = convert_to_wav(input_file)
     
-    # 构建基本命令
+    # 构建基本命令，其余设置请在json5配置文件中指定
     whisper_dir = os.path.join(os.getcwd(), "faster-whisper-webui")
     cmd = [
         "python",
@@ -152,7 +152,7 @@ def delete_repeated_sequences(srt_path):
 
 def main():
     if len(sys.argv) < 2:
-        print("使用方法: python cli.py <视频文件路径> [sakura_address]")
+        print("使用方法: python cli.py <视频文件路径> [sakura_address|claude|gpt-4o-mini|sakura]")
         sys.exit(1)
     
     input_file = sys.argv[1]
