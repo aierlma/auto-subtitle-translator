@@ -247,17 +247,17 @@ class COpenAITokenPool:
         while True:
             if rounds > 20:
                 raise RuntimeError("COpenAITokenPool::getToken: 可用的API key耗尽！")
-            # try:
-            available, token = choice(self.tokens)
-            if not available:
-                continue
-            if needGPT3 and token.isGPT35Available:
-                return token
-            if needGPT4 and token.isGPT4Available:
-                return token
-            rounds += 1
-            # except IndexError:
-            #     raise RuntimeError("没有可用的 API key！")
+            try:
+                available, token = choice(self.tokens)
+                if not available:
+                    continue
+                if needGPT3 and token.isGPT35Available:
+                    return token
+                if needGPT4 and token.isGPT4Available:
+                    return token
+                rounds += 1
+            except IndexError:
+                raise RuntimeError("没有可用的 API key！")
 
 
 async def init_sakura_endpoint_queue(projectConfig: CProjectConfig) -> Optional[Queue]:

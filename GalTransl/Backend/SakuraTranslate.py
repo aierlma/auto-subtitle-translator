@@ -304,7 +304,7 @@ class CSakuraTranslate(BaseTranslate):
                 transl_counter["error_count"]+=1
                 LOGGER.debug(f"错误计数：{transl_counter['error_count']}")
                 LOGGER.debug(f"翻译句数：{transl_counter['tran_count']}")
-                LOGGER.debug(f"千句错误率：{transl_counter['error_count']/transl_counter['tran_count']*1000:.2f}")
+                LOGGER.debug(f"千句错误率：{transl_counter['error_count']/min(transl_counter['tran_count'],1)*1000:.2f}")
 
                 if self.skipRetry:
                     self.reset_conversation()
@@ -388,7 +388,7 @@ class CSakuraTranslate(BaseTranslate):
             self.reset_conversation()
             self.last_file_name = filename
             LOGGER.info(f"-> 开始翻译文件：{filename}")
-        i = 1 # 修改自原作者
+        i = 0
         if self.restore_context_mode and len(self.chatbot.conversation["default"]) == 1:
             self.restore_context(trans_list_unhit, num_pre_request)
 
@@ -403,10 +403,10 @@ class CSakuraTranslate(BaseTranslate):
             leave=False,
             file=sys.stdout,
         )
-        while i < len_trans_list-2 and i>=1:
+        while i < len_trans_list:
             # await asyncio.sleep(1)
 
-            trans_list_split = trans_list_unhit[i-1 : i + num_pre_request+1] # 前加一句后加一句，修改自原作者
+            trans_list_split = trans_list_unhit[i : i + num_pre_request]
             dic_prompt = (
                 gpt_dic.gen_prompt(trans_list_split, type="sakura")
                 if gpt_dic != None
@@ -420,15 +420,14 @@ class CSakuraTranslate(BaseTranslate):
                     num -= self.transl_dropout
                     trans_result = trans_result[:num]
 
-            i += num-2 if num-2 > 0 else 0 # 修改自原作者
+            i += num if num > 0 else 0
             transl_counter["tran_count"]+=num
             transl_step_count += 1
             if transl_step_count >= self.save_steps:
                 save_transCache_to_json(trans_list, cache_file_path)
                 transl_step_count = 0
-                
-            LOGGER.info("".join([repr(tran) for tran in trans_result]))
-            trans_result_list += trans_result[1:-1] # 修改自原作者
+
+            trans_result_list += trans_result
             progress_bar.update(num)
             print("\n", flush=True)
             LOGGER.info("".join([repr(tran) for tran in trans_result]))
